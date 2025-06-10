@@ -1,0 +1,12 @@
+
+Question: Can you show me a breakdown of customer support tickets by service type - cellular vs business internet
+Answer: क्या आप मुझे सेवा प्रकार - सेल्युलर बनाम बिजनेस इंटरनेट के आधार पर ग्राहक सहायता टिकटों का विवरण दिखा सकते हैं?
+
+Question: How many unique customers have raised a support ticket with a 'Cellular' service type and have 'Email' as their contact preference
+Answer: कितने विशिष्ट ग्राहकों ने 'सेल्युलर' सेवा प्रकार के साथ सहायता टिकट दर्ज किया है और संपर्क के लिए 'ईमेल' को प्राथमिकता दी है?
+
+Question: What kind of service does Gregory have
+Answer: ग्रेगरी किस प्रकार की सेवा प्रदान करते हैं?
+
+Question: Was he charged with roaming fees
+Answer: क्या उन पर रोविंग शुल्क लगाया गया था?

@@ -1,0 +1,12 @@
+
+Question: Can you show me a breakdown of customer support tickets by service type - cellular vs business internet
+Answer: ನೀವು ನನಗೆ ಸೇವಾ ಪ್ರಕಾರದಿಂದ ಗ್ರಾಹಕ ಬೆಂಬಲ ಟಿಕೆಟ್‌ಗಳ ವಿಭಜನೆಯನ್ನು ತೋರಿಸಬಹುದೇ - ಸೆಲ್ಯುಲರ್ ಅಥವಾ ವ್ಯವಹಾರ ಇಂಟರ್ನೆಟ್?
+
+Question: How many unique customers have raised a support ticket with a 'Cellular' service type and have 'Email' as their contact preference
+Answer: ಎಷ್ಟು ವಿಶಿಷ್ಟ ಗ್ರಾಹಕರು 'ಸೆಲ್‌ಯಾಲರ್' ಸೇವಾ ಪ್ರಕಾರದೊಂದಿಗೆ ಬೆಂಬಲ ಟಿಕೇಟ್ ಅನ್ನು ಸಲ್ಲಿಸಿದ್ದಾರೆ ಮತ್ತು ಅವರ ಸಂಪರ್ಕ ಆದ್ಯತೆಯಾಗಿ 'ಇಮೇಲ್' ಅನ್ನು ಹೊಂದಿದ್ದಾರೆ?
+
+Question: What kind of service does Gregory have
+Answer: ಗ್ರೆಗೊರಿ ಯಾವ ರೀತಿಯ ಸೇವೆಯನ್ನು ನೀಡುತ್ತಾರೆ?
+
+Question: Was he charged with roaming fees
+Answer: ಅವನಿಗೆ ರೋಮಿಂಗ್ ಶುಲ್ಕ ವಿಧಿಸಲಾಯಿತೇ?

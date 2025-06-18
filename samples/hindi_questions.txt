@@ -9,4 +9,4 @@ Question: What kind of service does Gregory have
 Answer: ग्रेगरी किस प्रकार की सेवा प्रदान करते हैं?
 
 Question: Was he charged with roaming fees
-Answer: क्या उन पर रोविंग शुल्क लगाया गया था?
+Answer: क्या ग्रेगरी उन पर रोविंग शुल्क लगाया गया था?

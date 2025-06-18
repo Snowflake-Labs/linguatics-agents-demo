@@ -9,4 +9,4 @@ Question: What kind of service does Gregory have
 Answer: గ్రెగొరీ ఏ రకమైన సేవను అందిస్తారు?
 
 Question: Was he charged with roaming fees
-Answer: అతనికి రోమింగ్ ఫీజు వసూలు చేశారా?
+Answer: గ్రెగొరీ రోమింగ్ ఫీజు వసూలు చేశారా?

@@ -1,8 +1,8 @@
 # Linguatics Agents Demo
 
-A [Streamlit](https://streamlit.io) application demonstrating the use of Snowflake Cortex Analyst with Indic languages, featuring automatic language detection and translation capabilities powered by [SarvamAI](https://sarvam.ai).
+A [Streamlit](https://streamlit.io) application demonstrating the use of [Snowflake Cortex Analyst](https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-analyst), [Snowflake Cortex Search](https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-search/cortex-search-overview) and [Snowflake Cortex Agents](https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-agents) with Indic languages, featuring automatic language detection and translation capabilities powered by [SarvamAI](https://sarvam.ai).
 
-This demo leverages Snowflake's [Orchestration Framework](https://github.com/snowflake-labs/orchestration-framework) to build sophisticated multilingual AI agents capable of analyzing customer support tickets across various Indic languages. The orchestration framework provides a powerful foundation for creating agentic AI workflows that can handle complex multi-step processes, tool integrations, and state management.
+This demo leverages Snowflake's [Orchestration Framework](https://github.com/snowflake-labs/orchestration-framework) to build sophisticated multilingual AI agents capable of analyzing customer support tickets across various Indic languages. The orchestration framework provides a powerful foundation for creating Agentic AI workflows that can handle complex multi-step processes, tool integrations, and state management.
 
 Key orchestration capabilities utilized in this demo:
 
@@ -14,24 +14,28 @@ Key orchestration capabilities utilized in this demo:
 
 This architecture ensures a seamless user experience for non-English speakers while maintaining the flexibility to extend functionality and integrate additional tools as needed.
 
+> [!IMPORTANT]
+> **Disclaimer:**
+> This project is at a very experimental stage and is subject to significant changes. It is not yet ready for production use.
+
 ## Overview
 
 This demo showcases how to build multilingual AI agents that can:
 
 - Detect the language of user questions in various Indic languages
 - Translate questions to English for processing by Snowflake Cortex Analyst
-- Provide responses to customer support ticket analysis queries
+- Provide responses to customer support ticket analysis queries in the same language as the input
 - Support debugging and monitoring with optional TruLens integration
 
 ## Features
 
-- **🌐 Multilingual Support**: Supports multiple Indic languages including Hindi, Tamil, Telugu, Kannada, and Malayalam
-- **🔍 Language Detection**: Automatic detection of input language using SarvamAI
-- **🔄 Translation**: Real-time translation from Indic languages to English
-- **📊 Data Analysis**: Integration with Snowflake Cortex Analyst for customer support ticket analysis
-- **🐛 Debug Mode**: Real-time logging and translation preview
-- **📈 Monitoring**: Optional TruLens integration for agent monitoring and evaluation
-- **💬 Chat Interface**: User-friendly Streamlit chat interface
+- [x] **🌐 Multilingual Support**: Supports multiple Indic languages including Hindi, Tamil, Telugu, Kannada, and Malayalam
+- [x] **🔍 Language Detection**: Automatic detection of input language using SarvamAI
+- [x] **🔄 Translation**: Real-time translation from Indic languages to English
+- [x] **📊 Data Analysis**: Integration with Snowflake Cortex Analyst for customer support ticket analysis
+- [x] **🐛 Debug Mode**: Real-time logging and translation preview
+- [ ] **📈 Monitoring**: Optional TruLens integration for agent monitoring and evaluation
+- [x] **💬 Chat Interface**: User-friendly Streamlit chat interface
 
 ## Architecture
 
@@ -43,7 +47,7 @@ The application uses a multi-tool agent architecture:
 
 ## Prerequisites
 
-- Python 3.11 or higher
+- Python 3.12 or higher
 - Snowflake account with Cortex Analyst access
 - SarvamAI API key
 - UV package manager (recommended) or pip
@@ -83,11 +87,48 @@ The application uses a multi-tool agent architecture:
 
 ### Snowflake Setup
 
-**TODO**: Replace this section with the actual Snowflake setup instructions, including sample data load and semantic model configuration.
+#### DB Setup
 
-1. Ensure your Snowflake account has access to Cortex Analyst
-2. Set up the semantic model file (`support_tickets_semantic_model.yaml`)
-3. Upload the semantic model to your Snowflake stage (`MY_MODELS`)
+Ensure you have Snowflake CLI installed and configured with your account details. Preferred to have user with `ACCOUNTADMIN` role to create the required database objects, before strip down to fine-grained access control for the MCP demo.
+
+##### Create Database Objects
+
+> [!IMPORTANT]
+> Edit the `scripts/data/support_tickets.yaml` and update the `KAMESH_MCP_DEMO` to match your DB that you will be using for the demo i.e `$SNOWFLAKE_MCP_DEMO_DATABASE`.
+
+Run the following SQL commands in your Snowflake account to create the necessary database objects:
+
+```shell
+./scripts/setup.sh
+```
+
+##### Programmatic Access Token
+
+We will be using a programmatic access token to authenticate with the Snowflake Cortex APIs. You can create a token by following these steps:
+
+```shell
+./scripts/pat.sh
+```
+
+Verify if the programmatic access token is created successfully and working:
+
+```shell
+ snow connection test -x \
+    --user "$SA_USER" \
+    --role "$SNOWFLAKE_MCP_DEMO_ROLE"
+```
+
+Verify if the service user is able to access the database objects created in the previous step:
+
+```shell
+ curl --location \
+   "https://$SNOWFLAKE_ACCOUNT.snowflakecomputing.com/api/v2/databases/$SNOWFLAKE_MCP_DEMO_DATABASE/schemas/data/cortex-search-services/invoice_search_service:query" \
+   --header 'X-Snowflake-Authorization-Token-Type: PROGRAMMATIC_ACCESS_TOKEN' \
+   --header 'Content-Type: application/json' --header 'Accept: application/json' \
+   --header "Authorization: Bearer $SNOWFLAKE_PASSWORD" \
+    --data '{ "query": "What kind of service does Gregory have?","columns": ["CHUNK",
+                "FILE_NAME"],"limit": 1}'
+```
 
 ### SarvamAI Setup
 
@@ -107,9 +148,9 @@ The application uses a multi-tool agent architecture:
    - Toggle debug mode for detailed logging
 
 3. **Ask questions** in your preferred language:
-   - Hindi: "ग्राहक सहायता टिकट की स्थिति क्या है?"
-   - Tamil: "வாடிக்கையாளர் ஆதரவு டிக்கெட்டின் நிலை என்ன?"
-   - Telugu: "కస్టమర్ సపోర్ట్ టికెట్ స్థితి ఏమిటి?"
+   - Hindi: "क्या आप मुझे सेवा प्रकार - सेल्युलर बनाम बिजनेस इंटरनेट के आधार पर ग्राहक सहायता टिकटों का विवरण दिखा सकते हैं?"
+   - Tamil: "கிரிகோரி ரோமிங் கட்டணம் வசூலிக்கப்பட்டாரா?"
+   - Telugu: "ఎన్ని ప్రత్యేకమైన వినియోగదారులు 'సెల్‌యులార్' సేవ రకాన్ని ఎంచుకొని, వారి సంప్రదింపు ప్రాధాన్యతగా 'ఇమెయిల్' ని ఎంచుకొని సహాయ టికెట్ను సమర్పించారు?"
 
 4. **View results**:
    - The agent will detect the language, translate if needed, and provide analysis
@@ -125,84 +166,6 @@ The `samples/` directory contains example questions in various languages:
 - `kannada_questions.txt` - Kannada language examples
 - `malayalam_questions.txt` - Malayalam language examples
 
-## Development
-
-### Project Structure
-
-```
-├── main.py                 # Main Streamlit application
-├── pyproject.toml         # Project configuration
-├── .env                   # Environment variables (create from .env.example)
-├── LICENSE                # Apache License v2.0
-├── README.md             # This file
-├── samples/              # Sample questions in various languages
-│   ├── hindi_questions.txt
-│   ├── tamil_questions.txt
-│   └── ...
-└── work/                 # Development notebooks
-    └── Quickstart.ipynb
-```
-
-### Key Components
-
-- **SarvamLanguageTools**: Handles language detection and translation
-- **StreamlitLogHandler**: Custom logging handler for real-time log display
-- **Agent Gateway Integration**: Uses Snowflake's orchestration framework
-- **Async Processing**: Handles long-running agent calls without blocking UI
-
-### Adding New Languages
-
-To add support for new languages:
-
-1. Ensure SarvamAI supports the language
-2. Add sample questions to the `samples/` directory
-3. Test language detection and translation accuracy
-
-## Optional Features
-
-### TruLens Integration
-
-Enable monitoring and evaluation:
-
-1. Install TruLens dependencies:
-
-   ```bash
-   uv sync --group trulens
-   ```
-
-2. Enable TruLens in the sidebar settings
-
-3. Access the TruLens dashboard at `http://localhost:8084`
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Session State Errors**:
-   - Ensure all required environment variables are set
-   - Restart the Streamlit application
-
-2. **Translation Errors**:
-   - Verify SarvamAI API key is valid
-   - Check network connectivity
-
-3. **Snowflake Connection Issues**:
-   - Verify connection parameters in `.env`
-   - Ensure proper database/schema/warehouse access
-
-4. **Async Context Issues**:
-   - The application handles async agent calls properly
-   - Check logs for detailed error information
-
-### Debug Mode
-
-Enable debug mode in the sidebar to see:
-
-- Detected source language
-- Translation results
-- Detailed processing logs
-- Agent execution steps
-
 ## License
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
@@ -214,14 +177,6 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 - [SarvamAI](https://sarvam.ai) for Indic language processing capabilities
 - [Streamlit](https://streamlit.io) for the web application framework
 - [TruLens](https://trulens.org) for agent monitoring and evaluation
-
-## Support
-
-For questions and support:
-
-- Open an issue in this repository
-- Check the troubleshooting section above
-- Review the sample notebooks in the `work/` directory
 
 ---
 

@@ -12,11 +12,9 @@
 # limitations under the License.
 
 import asyncio
-import io
 import logging
 import os
 import queue
-import re
 import threading
 import uuid
 import warnings
@@ -25,18 +23,17 @@ import streamlit as st
 
 # Agent Gateway imports
 from agent_gateway import Agent, TruAgent
-from agent_gateway.tools import CortexAnalystTool, PythonTool
-from agent_gateway.tools.utils import parse_log_message
+from agent_gateway.tools import CortexAnalystTool, CortexSearchTool, PythonTool
 from dotenv import load_dotenv
-
-# Sarvam imports
-from sarvamai import SarvamAI
 
 # Snowflake imports
 from snowflake.snowpark import Session
 
 # Trulens imports
 from trulens.core.database.connector.default import DefaultDBConnector
+
+from logging_util import setup_logging
+from sarvam_ai_lang_tools import answer_translator, lang_detect, translate
 
 load_dotenv()
 
@@ -55,7 +52,33 @@ st.markdown(
     "You can ask questions in your preferred language, and the agent will respond accordingly."
 )
 
+OUTPUT_PROMPT = """
+You are a helpful multi lingual analyst who can answer about customer support tickets. Guidelines for your tasks will be:
+1. Translates the question from detected language to english
+2. Send the translated question to the CortexAnalystTool to get the answer.
+3. Translate the answer back to the original language of the question using the 'answer_translator' tool.
+4. The answer should start with a marker 'Action: Finish' and end with a marker '<END_OF_RESPONSE>' with actual answer between the start and end marker.
+"""
+
 # Initialize session state variables with defaults if not already set
+if "model_stage" not in st.session_state:
+    __model_stage = os.getenv("SEMANTIC_MODEL_STAGE")
+    if not __model_stage:
+        raise ValueError("SEMANTIC_MODEL_FILE environment variable is not set.")
+    st.session_state.model_stage = __model_stage
+
+if "semantic_model_file" not in st.session_state:
+    __semantic_model_file = os.getenv("SEMANTIC_MODEL_FILE")
+    if not __semantic_model_file:
+        raise ValueError("SEMANTIC_MODEL_FILE environment variable is not set.")
+    st.session_state.semantic_model_file = __semantic_model_file
+
+if "search_service_name" not in st.session_state:
+    __search_service_name = os.getenv("SEARCH_SERVICE_NAME")
+    if not __search_service_name:
+        raise ValueError("SEARCH_SERVICE_NAME environment variable is not set.")
+    st.session_state.search_service_name = __search_service_name
+
 if "debug_mode" not in st.session_state:
     # Default debug mode is True for this demo
     st.session_state.debug_mode = True
@@ -75,123 +98,11 @@ if "target_lang" not in st.session_state:
     st.session_state.target_lang = "en-IN"
 
 
-class StreamlitLogHandler(logging.Handler):
-    def __init__(self):
-        super().__init__()
-        self.log_buffer = io.StringIO()
-        self.ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
-
-    def emit(self, record):
-        msg = self.format(record)
-        clean_msg = self.ansi_escape.sub("", msg)
-        self.log_buffer.write(clean_msg + "\n")
-
-    def get_logs(self):
-        return self.log_buffer.getvalue()
-
-    def process_logs(self):
-        raw_logs = self.get_logs()
-        lines = raw_logs.strip().split("\n")
-        log_output = [parse_log_message(line.strip()) for line in lines if line.strip()]
-        cleaned_output = [line for line in log_output if line is not None]
-        all_logs = "\n".join(cleaned_output)
-        return all_logs
-
-    def clear_logs(self):
-        self.log_buffer = io.StringIO()
-
-
-def setup_logging():
-    root_logger = logging.getLogger()
-    handler = StreamlitLogHandler()
-    handler.setLevel(logging.INFO)
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-    handler.setFormatter(formatter)
-    root_logger.addHandler(handler)
-    return handler
-
-
 # Set up logging
 if "logging_setup" not in st.session_state:
     st.session_state.logging_setup = setup_logging()
     st.logger = logging.getLogger("AgentGatewayLogger")  # type: ignore
     st.logger.propagate = True  # type: ignore
-
-
-class SarvamLanguageTools:
-    """A class to handle language detection and translation using SarvamAI."""
-
-    SPEAKER_GENDER = "Male"
-    TRANSLATION_MODE = "classic-colloquial"
-    SARVAM_MODEL = "mayura:v1"
-    TARGET_LANGUAGE = "en-IN"  # Always translate to English (India)
-
-    def __init__(self, logger, debug_mode: bool = True):
-        self.sarvam_client = SarvamAI(
-            api_subscription_key=os.getenv("SARVAM_API_KEY"),
-        )
-        self.logger = logger
-        self.__detected_language = None
-        self.target_language = "en-IN"
-        self.__translation = None
-        self.debug_mode = debug_mode
-
-    @property
-    def detected_language(self):
-        return self.__detected_language
-
-    @property
-    def translation(self):
-        return self.__translation
-
-    def lang_detect(self, text: str) -> str | None:
-        response = self.sarvam_client.text.identify_language(input=text)
-        lang_code = response.language_code
-
-        self.__detected_language = lang_code
-        self.logger.info(f"Detected language: {lang_code}")  # type: ignore
-
-        return lang_code  # Return the language code and the original text
-
-    def translate(self, question: str) -> str:
-        self.logger.info(
-            f"Translating: {question} from {self.detected_language} to {self.target_language}"
-        )
-
-        response = self.sarvam_client.text.translate(
-            input=question,
-            source_language_code=self.detected_language,
-            target_language_code=self.TARGET_LANGUAGE,
-            speaker_gender=self.SPEAKER_GENDER,
-            mode=self.TRANSLATION_MODE,
-            model=self.SARVAM_MODEL,
-            enable_preprocessing=False,
-        )
-
-        self.__translation = response.translated_text
-        self.logger.info(f"Translation: {self.translation}")
-
-        return self.__translation
-
-
-def chunk_text(text, max_length=1000):
-    """Splits text into chunks of at most max_length characters while preserving word boundaries."""
-    chunks = []
-
-    while len(text) > max_length:
-        split_index = text.rfind(" ", 0, max_length)  # Find the last space within limit
-        if split_index == -1:
-            split_index = max_length  # No space found, force split at max_length
-
-        chunks.append(text[:split_index].strip())  # Trim spaces before adding
-        text = text[split_index:].lstrip()  # Remove leading spaces for the next chunk
-
-    if text:
-        chunks.append(text.strip())  # Add the last chunk
-
-    return chunks
 
 
 def build_agent():
@@ -211,7 +122,9 @@ def build_agent():
     else:
         agent = Agent(
             snowflake_connection=st.session_state.snowpark,
+            agent_llm="claude-3-5-sonnet",
             tools=st.session_state.snowflake_tools,
+            fusion_prompt=OUTPUT_PROMPT,
         )
     return agent
 
@@ -241,45 +154,59 @@ if "snowpark" not in st.session_state or st.session_state.snowpark is None:
         connection_parameters
     ).getOrCreate()
     # IMPORTANT: Set the database, schema, and warehouse for the session
-    st.session_state.snowpark.use_database("kamesh_llm_demo")
+    st.session_state.snowpark.use_database(connection_parameters["database"])
     st.session_state.snowpark.use_schema(connection_parameters["schema"])
     st.session_state.snowpark.use_warehouse(connection_parameters["warehouse"])
 
     analyst_config = {
-        "semantic_model": "support_tickets_semantic_model.yaml",
-        "stage": "MY_MODELS",
+        "semantic_model": st.session_state.semantic_model_file,
+        "stage": st.session_state.model_stage,
         "service_topic": "Customer support tickets model",
         "data_description": "a table with customer support tickets",
         "snowflake_connection": st.session_state.snowpark,
         "max_results": 5,
     }
 
-    st.session_state.language_tools = SarvamLanguageTools(
-        logger=st.logger,  # type: ignore
-        debug_mode=st.session_state.debug_mode,
-    )
+    search_config = {
+        "service_name": st.session_state.search_service_name,
+        "service_topic": "Customer invoice related queries.",
+        "data_description": "Customer invoices and related documents",
+        "retrieval_columns": ["PARSED_TEXT", "URL"],
+        "snowflake_connection": st.session_state.snowpark,
+        "k": 10,
+    }
 
     __language_identifier_config = {
         "tool_description": "Identify the language of the question",
-        "output_description": "The Indic language code of the question that will be used by the translator tool.",
-        "python_func": st.session_state.language_tools.lang_detect,
+        "output_description": "It should identify the language code and return it for other tools to use.",
+        "python_func": lang_detect,
     }
 
     __translator_config = {
-        "tool_description": "If language detected is not English, translate the question to English before passing it to the Analyst tool.",
-        "output_description": "english translation of the question",
-        "python_func": st.session_state.language_tools.translate,
+        "tool_description": "Use the identified language from the right tool (e.g., ta-IN for Tamil, hi-IN for Hindi, te-IN for Telugu) as the language code to translate the question to English and then pass the english question to Analyst tool.",
+        "output_description": "Returns English translation of the question",
+        "python_func": translate,
+    }
+
+    __answer_translator_config = {
+        "tool_description": "Translate the answer from English back to the original language of the question.",
+        "output_description": "Returns the answer translated from English to the original question's language.",
+        "python_func": answer_translator,
     }
 
     # Tools Config
     st.session_state.language_identifier = PythonTool(**__language_identifier_config)
     st.session_state.translator = PythonTool(**__translator_config)
+    st.session_state.answer_translator = PythonTool(**__answer_translator_config)
     st.session_state.analyst = CortexAnalystTool(**analyst_config)
+    st.session_state.search_config = CortexSearchTool(**search_config)
 
     st.session_state.snowflake_tools = [
         st.session_state.language_identifier,
         st.session_state.translator,
         st.session_state.analyst,
+        st.session_state.search_config,
+        st.session_state.answer_translator,
     ]
 
 
@@ -289,42 +216,42 @@ if "agent" not in st.session_state:
 
 
 # Sidebar settings
-with st.sidebar:
-    st.header("⚙️ Settings")
-    st.subheader("Configure your agent")
+# with st.sidebar:
+#     st.header("⚙️ Settings")
+#     st.subheader("Configure your agent")
 
-    st.session_state.enable_truelens = st.radio(
-        "Enable TruLens",
-        options=[True, False],
-        help="Enable TruLens for monitoring and debugging agent interactions.",
-        format_func=lambda x: "Enabled" if x else "Disabled",
-        index=1,
-    )
-    st.session_state.debug_mode = st.radio(
-        "Debug Mode",
-        options=[True, False],
-        format_func=lambda x: "Enabled" if x else "Disabled",
-        help="Enable or disable debug mode.",
-        index=0,
-        key="debug",
-    )
+#     st.session_state.enable_truelens = st.radio(
+#         "Enable TruLens",
+#         options=[True, False],
+#         help="Enable TruLens for monitoring and debugging agent interactions.",
+#         format_func=lambda x: "Enabled" if x else "Disabled",
+#         index=1,
+#     )
+#     # st.session_state.debug_mode = st.radio(
+#     #     "Debug Mode",
+#     #     options=[True, False],
+#     #     format_func=lambda x: "Enabled" if x else "Disabled",
+#     #     help="Enable or disable debug mode.",
+#     #     index=0,
+#     #     key="debug",
+#     # )
 
-    if st.session_state.debug_mode and (
-        st.session_state.language_tools.detected_language
-        or st.session_state.language_tools.translation
-    ):
-        t_lang = st.session_state.language_tools.target_language
-        s_lang = st.session_state.language_tools.detected_language
-        st.sidebar.markdown(f"Target Language:`{t_lang}`")
-        st.sidebar.markdown(
-            f"Identified Source Language:`{s_lang}`",
-        )
-        st.sidebar.text_area(
-            "Translation",
-            value=st.session_state.language_tools.translation or "No translation yet.",
-            height=100,
-            disabled=True,
-        )
+#     # if st.session_state.debug_mode and (
+#     #     st.session_state.language_tools.detected_language
+#     #     or st.session_state.language_tools.translation
+#     # ):
+#     #     t_lang = st.session_state.language_tools.target_language
+#     #     s_lang = st.session_state.language_tools.detected_language
+#     #     st.sidebar.markdown(f"Target Language:`{t_lang}`")
+#     #     st.sidebar.markdown(
+#     #         f"Identified Source Language:`{s_lang}`",
+#     #     )
+#     #     st.sidebar.text_area(
+#     #         "Translation",
+#     #         value=st.session_state.language_tools.translation or "No translation yet.",
+#     #         height=100,
+#     #         disabled=True,
+#     #     )
 
 
 def process_message(prompt_id: str):

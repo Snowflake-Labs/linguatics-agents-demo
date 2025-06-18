@@ -9,4 +9,4 @@ Question: What kind of service does Gregory have
 Answer: கிரிகோரி எந்த மாதிரியான சேவையை வழங்குகிறார்?
 
 Question: Was he charged with roaming fees
-Answer: அவர் ரோமிங் கட்டணம் வசூலிக்கப்பட்டாரா?
+Answer: கிரிகோரி ரோமிங் கட்டணம் வசூலிக்கப்பட்டாரா?

@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 
 dependencies = [
+    "fastmcp>=2.8.0",
     "orchestration-framework",
     "python-dotenv>=1.1.0",
     "sarvamai>=0.1.5",
@@ -13,14 +14,14 @@ dependencies = [
     "wrapt",
 ]
 
-[tool.uv.sources]
-orchestration-framework = { git = "https://github.com/Snowflake-Labs/orchestration-framework", tag="v1.0.3" }
-
 [dependency-groups]
 dev = [
     "ipykernel>=6.29.5",
     "watchdog>=6.0.0",
 ]
+
+[tool.uv.sources]
+orchestration-framework = { git = "https://github.com/Snowflake-Labs/orchestration-framework", rev = "tool-args" }
 
 [project.optional-dependencies]
 trulens = [

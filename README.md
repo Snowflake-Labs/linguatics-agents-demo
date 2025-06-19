@@ -27,6 +27,7 @@ This demo showcases how to build multilingual AI agents that can:
 - Provide responses to customer support ticket analysis queries in the same language as the input
 - Support debugging and monitoring with optional TruLens integration
 
+![Quick Demo](./demo.gif)
 ## Features
 
 - [x] **🌐 Multilingual Support**: Supports multiple Indic languages including Hindi, Tamil, Telugu, Kannada, and Malayalam
